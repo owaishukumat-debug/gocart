@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { assets } from "@/assets/assets"
 import { useState } from "react"
@@ -11,6 +11,7 @@ export default function AddProductPage() {
   const [productInfo, setProductInfo] = useState({
     name: "",
     description: "",
+    mrp: "",  // New field for MRP
     price: "",
     category: "",
     stock: "",
@@ -26,11 +27,43 @@ export default function AddProductPage() {
     setLoading(true)
 
     try {
-      // 👇 Yahan tum API call karoge
-      // await fetch("/api/admin/products", { method: "POST", body: JSON.stringify(productInfo) })
+      const formData = new FormData()
+      formData.append("name", productInfo.name)
+      formData.append("description", productInfo.description)
+      formData.append("mrp", productInfo.mrp)  // New
+      formData.append("price", productInfo.price)
+      formData.append("category", productInfo.category)
+      formData.append("stock", productInfo.stock)
 
-      toast.success("Product added successfully!")
+      if (productInfo.image) {
+        formData.append("image", productInfo.image)
+      }
+
+      const res = await fetch("/api/admin/add-product", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        toast.success("Product added successfully!")
+
+        // Reset form
+        setProductInfo({
+          name: "",
+          description: "",
+          mrp: "",
+          price: "",
+          category: "",
+          stock: "",
+          image: null,
+        })
+      } else {
+        toast.error(data.error || "Something went wrong!")
+      }
     } catch (err) {
+      console.error(err)
       toast.error("Something went wrong!")
     } finally {
       setLoading(false)
@@ -85,6 +118,7 @@ export default function AddProductPage() {
           type="text"
           placeholder="Enter product name"
           className="border border-slate-300 outline-slate-400 w-full p-2 rounded"
+          required
         />
 
         <p>Description</p>
@@ -97,14 +131,26 @@ export default function AddProductPage() {
           className="border border-slate-300 outline-slate-400 w-full p-2 rounded resize-none"
         />
 
-        <p>Price</p>
+        <p>MRP (Maximum Retail Price)</p>  {/* New Input */}
+        <input
+          name="mrp"
+          onChange={onChangeHandler}
+          value={productInfo.mrp}
+          type="number"
+          placeholder="Enter MRP"
+          className="border border-slate-300 outline-slate-400 w-full p-2 rounded"
+          required
+        />
+
+        <p>Selling Price</p>
         <input
           name="price"
           onChange={onChangeHandler}
           value={productInfo.price}
           type="number"
-          placeholder="Enter price"
+          placeholder="Enter selling price"
           className="border border-slate-300 outline-slate-400 w-full p-2 rounded"
+          required
         />
 
         <p>Category</p>
@@ -125,6 +171,7 @@ export default function AddProductPage() {
           type="number"
           placeholder="Enter stock quantity"
           className="border border-slate-300 outline-slate-400 w-full p-2 rounded"
+          required
         />
 
         <button
