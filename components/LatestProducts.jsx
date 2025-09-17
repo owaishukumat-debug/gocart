@@ -1,24 +1,49 @@
-'use client'
-import React from 'react'
-import Title from './Title'
-import ProductCard from './ProductCard'
-import { useSelector } from 'react-redux'
+"use client";
+import { useEffect, useState } from "react";
+import ProductCard from "@/components/ProductCard";
+import Title from "@/components/Title";
 
-const LatestProducts = () => {
+export default function LatestProducts() {
+  const [allProducts, setAllProducts] = useState([]);
+  const displayQuantity = 4;
 
-    const displayQuantity = 4
-    const products = useSelector(state => state.product.list)
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("/api/admin/products");
+        const data = await res.json();
 
-    return (
-        <div className='px-6 my-30 max-w-6xl mx-auto'>
-            <Title title='Latest Products' description={`Showing ${products.length < displayQuantity ? products.length : displayQuantity} of ${products.length} products`} href='/shop' />
-            <div className='mt-12 grid grid-cols-2 sm:flex flex-wrap gap-6 justify-between'>
-                {products.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, displayQuantity).map((product, index) => (
-                    <ProductCard key={index} product={product} />
-                ))}
-            </div>
-        </div>
-    )
+        // Saare products le lo, latest order pe
+        setAllProducts(data);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  // sirf latest 4 dikhane ke liye slice
+  const latestProducts = allProducts.slice(0, displayQuantity);
+
+  return (
+    <div className="px-6 my-20 max-w-6xl mx-auto">
+      <Title
+        title="Latest Products"
+        description={`Showing ${
+          latestProducts.length
+        } of ${allProducts.length} products`}
+        href="/shop"
+      />
+
+      <div className="mt-12 grid grid-cols-2 sm:flex flex-wrap gap-6 xl:gap-12">
+        {latestProducts.length > 0 ? (
+          latestProducts.map((product, index) => (
+            <ProductCard key={index} product={product} />
+          ))
+        ) : (
+          <p className="text-slate-500">No products found</p>
+        )}
+      </div>
+    </div>
+  );
 }
-
-export default LatestProducts

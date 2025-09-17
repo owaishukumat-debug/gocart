@@ -1,71 +1,51 @@
-import { PrismaClient } from "@prisma/client";
-import formidable from "formidable";
-import fs from "fs";
-import path from "path";
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma"; // apna prisma client yahan import karo
 
-const prisma = new PrismaClient();
-
+// Add Product
 export async function POST(req) {
-  const form = new formidable.IncomingForm();
-  form.uploadDir = path.join(process.cwd(), "/public/uploads");
-  form.keepExtensions = true;
+  try {
+    const body = await req.json();
+    const { name, description, mrp, price, images, category, inStock } = body;
 
-  if (!fs.existsSync(form.uploadDir)) fs.mkdirSync(form.uploadDir, { recursive: true });
+    if (!name || !price) {
+      return NextResponse.json(
+        { error: "Name and Price are required" },
+        { status: 400 }
+      );
+    }
 
-  // Simplified body parsing for App Router
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  const data = Buffer.concat(chunks).toString();
-  const contentType = req.headers['content-type'];
-  if (contentType?.includes('multipart/form-data')) {
-    form.headers = { ...req.headers };
-  }
-
-  return new Promise((resolve) => {
-    form.parse(req, async (err, fields, files) => {
-      if (err) {
-        console.error("Form parse error:", err.stack); // Detailed error
-        resolve(new Response(JSON.stringify({ error: "Form parsing error: " + err.message }), { status: 500 }));
-        return;
-      }
-
-      try {
-        console.log("Received fields:", fields); // Debug fields
-        console.log("Received files:", files); // Debug files
-        const { name, description, mrp, price, category, stock } = fields;
-        if (!name || !mrp || !price) {
-          resolve(new Response(JSON.stringify({ error: "Name, MRP, and price are required" }), { status: 400 }));
-          return;
-        }
-
-        let imagePath = "/placeholder.png";
-        if (files.image) {
-          const file = Array.isArray(files.image) ? files.image[0] : files.image;
-          const fileName = `${Date.now()}_${path.basename(file.originalFilename || 'image.jpg')}`;
-          const destPath = path.join(form.uploadDir, fileName);
-          fs.renameSync(file.filepath, destPath);
-          imagePath = `/uploads/${fileName}`;
-        }
-
-        const product = await prisma.product.create({
-          data: {
-            name: name[0], // Handle array from formidable
-            description: description ? description[0] || "" : "",
-            mrp: parseFloat(mrp[0]),
-            price: parseFloat(price[0]),
-            images: [imagePath],
-            category: category ? category[0] || "" : "",
-            stock: parseInt(stock[0]) || 0,
-            inStock: parseInt(stock[0]) > 0,
-          },
-        });
-
-        console.log("Product created:", product); // Debug success
-        resolve(new Response(JSON.stringify({ product }), { status: 200 }));
-      } catch (error) {
-        console.error("DB error:", error.stack); // Detailed DB error
-        resolve(new Response(JSON.stringify({ error: "Error adding product: " + error.message }), { status: 500 }));
-      }
+    const product = await prisma.product.create({
+      data: {
+        name,
+        description,
+        mrp,
+        price,
+        images, // array hai to Prisma schema me [String] hona chahiye
+        category,
+        inStock,
+      },
     });
-  });
+
+    return NextResponse.json(product, { status: 201 });
+  } catch (error) {
+    console.error("Error creating product:", error);
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 }
+    );
+  }
+}
+
+// Get All Products
+export async function GET() {
+  try {
+    const products = await prisma.product.findMany();
+    return NextResponse.json(products, { status: 200 });
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 }
+    );
+  }
 }
